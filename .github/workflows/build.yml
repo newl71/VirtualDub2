@@ -1,32 +1,41 @@
 name: Build VirtualDub2 x86
- 
+
 on:
   workflow_dispatch:
- 
+
 jobs:
   build:
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout fork (patch lives here)
+        uses: actions/checkout@v4
         with:
+          path: fork
+
+      - name: Checkout upstream sources 2.5.7
+        uses: actions/checkout@v4
+        with:
+          repository: v0lt/VirtualDub2
           ref: 2.5.7
- 
+          path: vd
+
       - name: Apply menu patch
         shell: bash
-        run: git apply --whitespace=nowarn menu-changes.patch
- 
+        working-directory: vd
+        run: git apply --whitespace=nowarn ../fork/menu-changes.patch
+
       - name: Install YASM
         shell: pwsh
         run: choco install yasm -y --no-progress
- 
+
       - uses: microsoft/setup-msbuild@v2
- 
+
       - name: Build Release Win32
         shell: pwsh
+        working-directory: vd
         run: msbuild VirtualDub2.sln /m /t:Rebuild /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143
- 
+
       - uses: actions/upload-artifact@v4
         with:
           name: VirtualDub2-x86
-          path: _out/**/VirtualDub2.exe
- 
+          path: vd/_out/**/VirtualDub2.exe
