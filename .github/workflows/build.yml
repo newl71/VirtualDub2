@@ -30,6 +30,23 @@ jobs:
         working-directory: vd
         run: call update_revision.cmd
 
+      - name: Install DirectX June 2010 runtime (d3dx9_43.dll)
+        shell: pwsh
+        run: |
+          $dll = "$env:WINDIR\SysWOW64\d3dx9_43.dll"
+          if (-not (Test-Path $dll)) {
+            choco install directx -y --no-progress
+          }
+          if (-not (Test-Path $dll)) {
+            $tmp = Join-Path $env:RUNNER_TEMP "dx"
+            New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+            Invoke-WebRequest "https://download.microsoft.com/download/8/4/A/84A35BF1-DAFE-4AE8-82AF-AD2AE20B6B14/directx_Jun2010_redist.exe" -OutFile "$tmp\dx.exe"
+            Start-Process "$tmp\dx.exe" -ArgumentList "/Q /T:$tmp\x" -Wait
+            expand.exe "$tmp\x\Jun2010_d3dx9_43_x86.cab" -F:d3dx9_43.dll "$env:WINDIR\SysWOW64"
+          }
+          if (-not (Test-Path $dll)) { throw "d3dx9_43.dll still missing" }
+          Write-Host "d3dx9_43.dll OK"
+
       - name: Install YASM
         shell: pwsh
         run: choco install yasm -y --no-progress
