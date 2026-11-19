@@ -18,11 +18,17 @@ jobs:
           repository: v0lt/VirtualDub2
           ref: 2.5.7
           path: vd
+          fetch-depth: 0
 
       - name: Apply menu patch
         shell: bash
         working-directory: vd
         run: git apply --whitespace=nowarn ../fork/menu-changes.patch
+
+      - name: Generate revision.h
+        shell: cmd
+        working-directory: vd
+        run: call update_revision.cmd
 
       - name: Install YASM
         shell: pwsh
