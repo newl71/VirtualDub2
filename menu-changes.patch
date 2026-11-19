@@ -1,0 +1,51 @@
+diff --git a/src/VirtualDub/res/VirtualDub.rc b/src/VirtualDub/res/VirtualDub.rc
+index 216c87e..d39b5ca 100644
+--- a/src/VirtualDub/res/VirtualDub.rc
++++ b/src/VirtualDub/res/VirtualDub.rc
+@@ -72,6 +72,7 @@ BEGIN
+         MENUITEM SEPARATOR
+         MENUITEM "Save video...\tF7",           ID_FILE_SAVEAVI
+         MENUITEM "&Save audio...",              ID_FILE_SAVEWAV
++        MENUITEM "Save direct copy",            ID_EXPORT_STREAM_COPY
+         MENUITEM "Run video analysis pass",     ID_FILE_RUNVIDEOANALYSISPASS
+         MENUITEM "E&xport",                     ID_FILE_EXPORT
+         POPUP "Queue &batch operation"
+@@ -261,6 +262,7 @@ BEGIN
+         MENUITEM SEPARATOR
+         MENUITEM "About...",                    ID_HELP_ABOUT
+     END
++    MENUITEM "Check plugins",               ID_OPTIONS_PLUGINS
+ END
+ 
+ IDR_DUB_MENU MENU
+diff --git a/src/VirtualDub/source/projectui.cpp b/src/VirtualDub/source/projectui.cpp
+index 649965e..8715105 100644
+--- a/src/VirtualDub/source/projectui.cpp
++++ b/src/VirtualDub/source/projectui.cpp
+@@ -1286,6 +1286,7 @@ class ProjectState: public IProjectState {
+ };
+ 
+ void VDProjectUI::ExportViaDriverTool(const char* name) {
++	if (!inputAVI) return;
+ 	int api_version = inputAVI->GetInputDriverApiVersion();
+ 	if (api_version<6) return;
+ 	IFilterModFileTool* tool;
+@@ -3015,6 +3016,7 @@ void VDProjectUI::UpdateMainMenu(HMENU hMenu) {
+ 	VDEnableMenuItemW32(hMenu, ID_FILE_SAVEANIMATEDGIF		, bSourceFileExists);
+ 	VDEnableMenuItemW32(hMenu, ID_FILE_SAVEANIMATEDPNG		, bSourceFileExists);
+ 	VDEnableMenuItemW32(hMenu, ID_FILE_SAVERAWAUDIO			, bSourceFileExists);
++	VDEnableMenuItemW32(hMenu, ID_EXPORT_STREAM_COPY			, bSourceFileExists);
+ 	VDEnableMenuItemW32(hMenu, ID_FILE_SAVERAWVIDEO			, bSourceFileExists);
+ 	VDEnableMenuItemW32(hMenu, ID_FILE_CLOSEAVI				, bSourceFileExists);
+ 	VDEnableMenuItemW32(hMenu, ID_FILE_STARTSERVER			, bSourceFileExists);
+@@ -3048,6 +3050,10 @@ void VDProjectUI::UpdateMainMenu(HMENU hMenu) {
+ 		inputAVI->GetFileTool(&tool);
+ 		if (tool) {
+ 			for (int i = 0; i < 3; i++) {
++				char cmdName[128];
++				if (tool->GetExportCommandName(i, cmdName, sizeof(cmdName)) && strcmp(cmdName, "Export.StreamCopy") == 0) {
++					continue; // moved to File menu: "Save direct copy"
++				}
+ 				char name[256];
+ 				bool enabled = true;
+ 				if (!tool->GetExportMenuInfo(i, name, sizeof(name), &enabled)) {
