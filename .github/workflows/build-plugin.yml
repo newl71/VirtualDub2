@@ -1,0 +1,61 @@
+name: Build avlib-1 plugin x86
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout fork (patch lives here)
+        uses: actions/checkout@v4
+        with:
+          path: fork
+
+      - name: Checkout upstream plugin sources 1.1.7
+        uses: actions/checkout@v4
+        with:
+          repository: v0lt/avlib_vdplugin
+          ref: 1.1.7
+          path: av
+          fetch-depth: 0
+
+      - name: Apply audio-only patch
+        shell: bash
+        working-directory: av
+        run: git apply --whitespace=nowarn ../fork/avlib-audio-only.patch
+
+      - name: Download FFmpeg win32 (8.1)
+        shell: pwsh
+        working-directory: av
+        run: |
+          $zip = "ffmpeg-n8.1-latest-win32-gpl-shared-8.1.zip"
+          curl.exe -L -o "ffmpeg\$zip" "https://github.com/defisym/FFmpeg-Builds-Win32/releases/download/latest/$zip"
+          $7z = "C:\Program Files\7-Zip\7z.exe"
+          $dlls = "avcodec-62.dll","avformat-62.dll","avutil-60.dll","swresample-6.dll","swscale-9.dll"
+          $libs = "avcodec.lib","avformat.lib","avutil.lib","swresample.lib","swscale.lib"
+          $defs = "avcodec-62.def","avformat-62.def","avutil-60.def","swresample-6.def","swscale-9.def"
+          & $7z e "ffmpeg\$zip" -o"ffmpeg\bin_win32\" @dlls -r -aos
+          & $7z e "ffmpeg\$zip" -o"ffmpeg\lib_win32\" @libs -r -aos
+          & $7z e "ffmpeg\$zip" -o"ffmpeg\lib_win32\" @defs -r -aos
+          Get-ChildItem ffmpeg\bin_win32, ffmpeg\lib_win32 | Select-Object Name, Length
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build Release Win32
+        shell: pwsh
+        working-directory: av
+        run: msbuild avlib_vdplugin.sln /m /t:Rebuild /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143
+
+      - name: Collect files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Get-ChildItem av\_bin -Recurse -Filter avlib-1.vdplugin | Copy-Item -Destination out
+          Copy-Item av\ffmpeg\bin_win32\*.dll out
+          Get-ChildItem out | Select-Object Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: avlib-1-x86-audioonly
+          path: out/*
